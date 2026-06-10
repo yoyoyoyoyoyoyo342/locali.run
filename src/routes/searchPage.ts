@@ -1,10 +1,11 @@
 import { Router } from "express"
-import OpenAI from "openai"
+import Groq from "groq-sdk"
 
 const router = Router()
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+// Initialize native Groq SDK Client
+const client = new Groq({
+  apiKey: process.env.GROQ_API_KEY
 })
 
 router.get("/", async (req, res) => {
@@ -15,11 +16,11 @@ router.get("/", async (req, res) => {
     if (!query) {
       return res.send(`
         <html>
-          <body>
-            <h1>locali.run</h1>
+          <body style="font-family: sans-serif; padding: 2rem; background: #0a0a0a; color: white;">
+            <h1>locali.run search directory</h1>
             <form method="GET" action="/search">
-              <input name="q" placeholder="Search..." />
-              <button type="submit">Search</button>
+              <input name="q" placeholder="Search..." style="padding: 0.5rem; width: 300px;" />
+              <button type="submit" style="padding: 0.5rem;">Search</button>
             </form>
           </body>
         </html>
@@ -27,7 +28,7 @@ router.get("/", async (req, res) => {
     }
 
     const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "llama-3.3-70b-versatile",
       messages: [
         {
           role: "system",
@@ -67,22 +68,22 @@ Return ONLY valid JSON in this format:
     }
 
     if (format === "json") {
-  return res.json(data)
-}
+      return res.json(data)
+    }
 
-return res.send(`
-  <html>
-    <body>
-      <h1>${data.title}</h1>
-      <p>${data.summary}</p>
+    return res.send(`
+      <html>
+        <body style="font-family: sans-serif; padding: 2rem; background: #0a0a0a; color: white;">
+          <h1>${data.title}</h1>
+          <p>${data.summary}</p>
 
-      <h2>Steps</h2>
-      <ul>
-        ${data.steps.map((s: any) => `<li>${s.text}</li>`).join("")}
-      </ul>
-    </body>
-  </html>
-`)
+          <h2>Steps</h2>
+          <ul>
+            ${data.steps.map((s: any) => `<li>${s.text}</li>`).join("")}
+          </ul>
+        </body>
+      </html>
+    `)
 
   } catch {
     return res.send("Search failed")

@@ -1,7 +1,7 @@
 import "dotenv/config"
 import express, { Request, Response } from "express"
 import cors from "cors"
-import OpenAI from "openai"
+import Groq from "groq-sdk"
 import { safeParseJSON } from "./utils/parseAI"
 import { sites } from "./data/sites"
 import { registerSite } from "./sdk/register"
@@ -12,12 +12,13 @@ import searchRoute from "./routes/search"
 import searchPage from "./routes/searchPage"
 import mcpRoute from "./routes/mcp"
 import mcpToolsRouter from "./routes/mcpTools"
-import { requireApiKey } from "./middleware/auth"
-
 
 const app = express()
-const PORT = 3000
 
+app.use(cors())
+app.use(express.json())
+
+// Open AI-Native Internet Endpoints (No Keys, Pure Protocol)
 app.use("/mcp/tools", mcpToolsRouter)
 app.use("/mcp", mcpRoute)
 app.use("/search", searchRoute)
@@ -27,15 +28,11 @@ function mustString(value: unknown): string | null {
   return typeof value === "string" ? value : null
 }
 
-app.use(cors())
-app.use(express.json())
-
 /**
- * GROQ (OpenAI-compatible)
+ * NATIVE GROQ INITIALIZATION
  */
-const groq = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: "https://api.groq.com/openai/v1"
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY
 })
 
 /**
@@ -189,45 +186,12 @@ async function traverseGraph(start: string, query: string) {
 }
 
 /**
- * INTENT PARSER
- */
-function parseIntent(query: string): ParsedIntent[] {
-  const q = query.toLowerCase()
-  const intents: ParsedIntent[] = []
-
-  if (q.includes("weather")) {
-    const locationMatch = q.match(/in ([a-zA-Z]+)/i)
-
-    intents.push({
-      raw: query,
-      intent: locationMatch ? `weather:${locationMatch[1]}` : "weather"
-    })
-  }
-
-  if (q.includes("book") || q.includes("haircut")) {
-    intents.push({
-      raw: query,
-      intent: "booking"
-    })
-  }
-
-  if (intents.length === 0) {
-    intents.push({
-      raw: query,
-      intent: "general"
-    })
-  }
-
-  return intents
-}
-
-/**
  * ROOT
  */
 app.get("/", (req: Request, res: Response) => {
   res.json({
     name: "locali.run",
-    description: "AI-accessible internet layer"
+    description: "AI-accessible internet layer — Locali AI Web Protocol (LAWP)"
   })
 })
 
@@ -320,12 +284,12 @@ Respond ONLY in JSON like:
     try {
       parsed = safeParseJSON(text)
 
-if (!parsed) {
-  return res.json({
-    error: "AI parsing failed",
-    raw: text
-  })
-}
+      if (!parsed) {
+        return res.json({
+          error: "AI parsing failed",
+          raw: text
+        })
+      }
     } catch {
       return res.json({
         error: "invalid AI JSON",
@@ -391,12 +355,12 @@ Respond ONLY in JSON like:
     try {
       plan = safeParseJSON(text)
 
-if (!Array.isArray(plan)) {
-  return res.json({
-    error: "invalid plan format",
-    raw: text
-  })
-}
+      if (!Array.isArray(plan)) {
+        return res.json({
+          error: "invalid plan format",
+          raw: text
+        })
+      }
     } catch {
       return res.json({ error: "invalid AI JSON", raw: text })
     }
@@ -524,7 +488,7 @@ app.get("/demo", (req, res) => {
       </style>
     </head>
     <body>
-      <h1>locali.run <span class="tag">AI Web Layer v1</span></h1>
+      <h1>locali.run <span class="tag">AI Web Protocol v1</span></h1>
       <input type="text" id="query" placeholder="Ask the AI agent (e.g. 'book a haircut and check weather')..." autocomplete="off" />
       <div id="output"></div>
 
@@ -536,21 +500,21 @@ app.get("/demo", (req, res) => {
             out.innerHTML = '<p style="color: #888;">AI is parsing intent and navigating the LAWP network...</p>';
 
             try {
-              const res = await fetch('/ask', {
+              const res = await fetch('/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: q, sessionId: 'demo-investor-01' })
+                body: JSON.stringify({ query: q })
               });
               const data = await res.json();
 
-              if(data.steps && data.steps.length > 0) {
-                out.innerHTML = data.steps.map((s, i) => \`
+              if(data.ai_pick) {
+                out.innerHTML = \`
                   <div class="step">
-                    <div class="domain">Step \${i + 1} // \${s.picked.domain}</div>
-                    <div class="action">Action executed: \${s.picked.action}</div>
-                    <div class="result">\${JSON.stringify(s.result, null, 2)}</div>
+                    <div class="domain">Target Node // \${data.ai_pick.domain}</div>
+                    <div class="action">Action selected: \${data.ai_pick.action}</div>
+                    <div class="result">\${JSON.stringify(data.debug?.results, null, 2)}</div>
                   </div>
-                \`).join('');
+                \`;
               } else {
                 out.innerHTML = '<p style="color: #ef4444;">No LAWP nodes matched the intent.</p>';
               }
@@ -565,6 +529,10 @@ app.get("/demo", (req, res) => {
   `);
 });
 
-app.listen(PORT, () => {
-  console.log(`locali.run running on http://localhost:${PORT}`)
-})
+// CRITICAL VERCEL CONFIG: Only bind server listener if running locally
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 3000
+  app.listen(PORT, () => console.log(`locali.run running local on port ${PORT}`))
+}
+
+export default app

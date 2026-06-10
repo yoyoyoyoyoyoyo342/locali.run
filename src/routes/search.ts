@@ -1,10 +1,11 @@
 import { Router } from "express"
-import OpenAI from "openai"
+import Groq from "groq-sdk"
 
 const router = Router()
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+// Initialize native Groq SDK Client
+const client = new Groq({
+  apiKey: process.env.GROQ_API_KEY
 })
 
 router.post("/", async (req, res) => {
@@ -16,7 +17,7 @@ router.post("/", async (req, res) => {
     }
 
     const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "llama-3.3-70b-versatile",
       messages: [
         {
           role: "system",
