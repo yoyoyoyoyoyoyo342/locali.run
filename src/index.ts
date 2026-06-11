@@ -21,7 +21,7 @@ app.use(express.json())
 // Open AI-Native Internet Endpoints (No Keys, Pure Protocol)
 app.use("/mcp/tools", mcpToolsRouter)
 app.use("/mcp", mcpRoute)
-app.use("/search", searchRoute)
+app.use("/api/search", searchRoute)
 app.use("/search", searchPage)
 
 function mustString(value: unknown): string | null {
